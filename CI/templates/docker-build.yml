@@ -1,0 +1,39 @@
+.default_build:
+  stage: build
+  image: google/cloud-sdk:slim
+  services:
+    - docker:dind
+
+  id_tokens:
+    GITLAB_OIDC_TOKEN:
+      aud: https://iam.googleapis.com/projects/$GCP_PROJECT_NUMBER/locations/global/workloadIdentityPools/$WORKLOAD_IDENTITY_POOL/providers/$WORKLOAD_IDENTITY_PROVIDER
+
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
+    IMAGE_TAG: $CI_COMMIT_SHORT_SHA
+
+  before_script:
+    - apt-get update && apt-get install -y docker.io git curl
+
+    # OIDC auth config
+    - |
+      echo "{
+        \"type\": \"external_account\",
+        \"audience\": \"//iam.googleapis.com/projects/$GCP_PROJECT_NUMBER/locations/global/workloadIdentityPools/$WORKLOAD_IDENTITY_POOL/providers/$WORKLOAD_IDENTITY_PROVIDER\",
+        \"subject_token_type\": \"urn:ietf:params:oauth:token-type:jwt\",
+        \"token_url\": \"https://sts.googleapis.com/v1/token\",
+        \"credential_source\": { \"file\": \"$CI_JOB_JWT_FILE\" },
+        \"service_account_impersonation_url\": \"https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/$SERVICE_ACCOUNT_EMAIL:generateAccessToken\"
+      }" > /tmp/gcp.json
+
+    - gcloud auth login --cred-file=/tmp/gcp.json
+    - gcloud config set project $GCP_PROJECT_ID
+    - gcloud auth configure-docker $GCP_REGION-docker.pkg.dev --quiet
+
+  script:
+    - cd $SERVICE_DIR
+    - docker build -t $IMAGE_URI .
+    - docker push $IMAGE_URI
+
+  when: manual
