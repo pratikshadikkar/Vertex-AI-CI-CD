@@ -1,5 +1,4 @@
-.default_build:
-  stage: build
+.default_job:
   image: google/cloud-sdk:slim
   services:
     - docker:dind
@@ -11,12 +10,19 @@
   variables:
     DOCKER_HOST: tcp://docker:2375
     DOCKER_TLS_CERTDIR: ""
-    IMAGE_TAG: $CI_COMMIT_SHORT_SHA
 
   before_script:
-    - apt-get update && apt-get install -y docker.io git curl
+    - apt-get update && apt-get install -y docker.io git curl jq
 
-    # OIDC auth config
+    # ---------- VERSION GENERATION ----------
+    - |
+      VERSION=$(git tag --sort=-v:refname | head -n1 | sed 's/v//' || echo "0.0.0")
+      IFS='.' read MAJOR MINOR PATCH <<< "$VERSION"
+      PATCH=$((PATCH+1))
+      export NEW_VERSION="v$MAJOR.$MINOR.$PATCH"
+      echo "Version = $NEW_VERSION"
+
+    # ---------- AUTH ----------
     - |
       echo "{
         \"type\": \"external_account\",
@@ -30,10 +36,3 @@
     - gcloud auth login --cred-file=/tmp/gcp.json
     - gcloud config set project $GCP_PROJECT_ID
     - gcloud auth configure-docker $GCP_REGION-docker.pkg.dev --quiet
-
-  script:
-    - cd $SERVICE_DIR
-    - docker build -t $IMAGE_URI .
-    - docker push $IMAGE_URI
-
-  when: manual
