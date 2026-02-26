@@ -1,0 +1,42 @@
+include:
+  - local: ci/templates/docker-build.yml
+
+stages:
+  - build
+  - update_tf
+
+build_service_a:
+  extends: .default_build
+  variables:
+    SERVICE_DIR: service-a
+    IMAGE_URI: $GCP_REGION-docker.pkg.dev/$GCP_PROJECT_ID/service-a/service-a:$CI_COMMIT_SHORT_SHA
+
+update_tf_service_a:
+  stage: update_tf
+  image: alpine:latest
+  needs: ["build_service_a"]
+  script:
+    - apk add --no-cache git curl
+
+    - git clone https://oauth2:$BOT_TOKEN@gitlab.com/$TF_REPO_URL tfrepo
+    - cd tfrepo
+
+    - BRANCH=update-service-a-$CI_COMMIT_SHORT_SHA
+    - git checkout -b $BRANCH
+
+    - sed -i "s|container_image *=.*|container_image = \"$IMAGE_URI\"|" envs/dev/service-a.tfvars
+
+    - git config user.email "ci-bot@company.com"
+    - git config user.name "CI Bot"
+
+    - git add .
+    - git commit -m "Update service-a image $CI_COMMIT_SHORT_SHA"
+    - git push origin $BRANCH
+
+    - |
+      curl --request POST \
+      --header "PRIVATE-TOKEN: $BOT_TOKEN" \
+      --data "source_branch=$BRANCH&target_branch=$TF_TARGET_BRANCH&title=Update service-a image" \
+      https://gitlab.com/api/v4/projects/$TF_PROJECT_ID/merge_requests
+
+  when: manual
