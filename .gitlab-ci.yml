@@ -1,0 +1,38 @@
+stages:
+  - trigger
+
+trigger_ingestion_chunker_embedded_run:
+  stage: trigger
+  trigger:
+    include: ci/services/ingestion_chunker_embedded_run.yml
+    strategy: depend
+  rules:
+    - changes:
+        - ingestion_chunker_embedded_run/**/*
+
+trigger_ingestion_index_upserter_run:
+  stage: trigger
+  trigger:
+    include: ci/services/ingestion_index_upserter_run.yml
+    strategy: depend
+  rules:
+    - changes:
+        - ingestion_index_upserter_run/**/*
+
+trigger_ingestion_trigger_handler_service:
+  stage: trigger
+  trigger:
+    include: ci/services/ingestion_trigger_handler_service.yml
+    strategy: depend
+  rules:
+    - changes:
+        - ingestion_trigger_handler_service/**/*
+
+trigger_ingestion_validator_parser_run:
+  stage: trigger
+  trigger:
+    include: ci/services/ingestion_validator_parser_run.yml
+    strategy: depend
+  rules:
+    - changes:
+        - ingestion_validator_parser_run/**/*
