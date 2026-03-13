@@ -1,0 +1,28 @@
+import os
+from vertexai.generative_models import GenerativeModel
+
+
+def create_llm():
+    from google.adk.agents.llm_agent import Agent
+
+    # FinOps labels
+    finops_labels = {
+        "team": "vertex-ai",
+        "component": "agent-gemini-provider",
+        "environment": "dev",
+        "version": "1.0"
+    }
+
+    # Create Gemini model
+    model = GenerativeModel("gemini-2.5-flash")
+
+    # Create Agent
+    return Agent(
+        model=model,
+        name="root_agent",
+        description="A helpful assistant for user questions.",
+        instruction="Answer user questions to the best of your knowledge",
+        generate_content_config={
+            "labels": finops_labels
+        }
+    )
